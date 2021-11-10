@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-"""
-Script för att slumpa fram hemlig tomte i Zagerholm-släkten
-"""
 from textmagic.rest import TextmagicRestClient
 from random import choice
 import pickle
@@ -13,6 +10,16 @@ from pathlib import Path
 
 
 def main():
+    """
+    # main
+
+    This function will find a random secret santa for every person in every 
+    family with the requirements that it is not the other family member and not 
+    the person it self.
+
+    It will then send text messages to all family members with their secret
+    santa
+    """
     # Get family data (names, relations and phone numbers)
     families, phonenumbers = getFamilyData()
     # Generate randomized secret santa
@@ -37,6 +44,11 @@ def main():
 
 
 def getFamilyData():
+    """
+    # getFamilyData
+
+    Function that returns family data read from a json file
+    """
     # Nested list with all families
     with open('family_data.json') as json_file:
         data = json.load(json_file)
@@ -45,11 +57,13 @@ def getFamilyData():
 
 def randomizeSecretSanta(families):
     """
+    # randomizeSecretSanta
+
     Function that takes a nested list of families as input, where the sub lists contains 
     people that should not get each other as secret santa.
 
     Outputs a nested list with names and for whom they are secret santa, e.g in the following format:
-    # [["santa_1","receiver_1"],["santa_2","receiver_2"],...,["santa_n","receiver_n"]]]
+    [["santa_1","receiver_1"],["santa_2","receiver_2"],...,["santa_n","receiver_n"]]]
     """
     tries = 0
     randomizationSuccessful = False
@@ -94,6 +108,11 @@ def randomizeSecretSanta(families):
 
 
 def get_settings():
+    """
+    # get_settings
+
+    Function that returns a dict with settings read from a yaml-file 
+    """
     full_file_path = Path(__file__).parent.joinpath('settings.yaml')
     with open(full_file_path) as settings:
         settings_data = yaml.load(settings, Loader=yaml.Loader)
@@ -102,6 +121,8 @@ def get_settings():
 
 def initiateTextMessageClient(settings):
     """
+    # initiateTextMessageClient
+
     Function that initiates the connection with the text messaging service
     """
     username = settings['username']
@@ -112,6 +133,8 @@ def initiateTextMessageClient(settings):
 
 def sendTextMessageToSecretSanta(client, phonenumber, secretSanta, receiver):
     """
+    # sendTextMessageToSecretSanta
+
     Function that sends a text message to the secret santa, informing about who
     that person is secret santa for.
     """
@@ -124,6 +147,8 @@ def sendTextMessageToSecretSanta(client, phonenumber, secretSanta, receiver):
 def sendTextMessageFromFile(
         textMessageRecipant, phonenumber, filename='secretSanta'):
     """
+    # sendTextMessageFromFile
+
     Function that can be used to send text message to a secret santa, using an old randomization
     stored in a file using pickle
     """
