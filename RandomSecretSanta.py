@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os.path
 from textmagic.rest import TextmagicRestClient
 from random import choice
 import pickle
@@ -22,25 +23,44 @@ def main():
     """
     # Get family data (names, relations and phone numbers)
     families, phonenumbers = getFamilyData()
+    savefile, previousSavefile = getSaveFileNames()
+
+    # Look for file with secret santas for previous year
+    if os.path.isfile(previousSavefile):
+        with open(previousSavefile, 'rb') as f:
+            previousSecretSanta = pickle.load(f)
+
     # Generate randomized secret santa
-    secretSanta = randomizeSecretSanta(families)
+    secretSanta = randomizeSecretSanta(families, previousSecretSanta)
+
     # Save the result to file if it needs to be reused later
-    now = time.localtime()
-    filename = 'secretSanta_{}'.format(now.tm_year)
-    with open(filename, 'wb') as f:
+    with open(savefile, 'wb') as f:
         pickle.dump(secretSanta, f)
+
     # Initiate text message client
     settings = get_settings()
     client = initiateTextMessageClient(settings)
+
     # Send text message to all secret santa
     for pair in secretSanta:
-        if pair[0] == 'Isac':
-            print(pair[0], ' => ', pair[1])
-            sendTextMessageToSecretSanta(
-                client, phonenumbers[pair[0]], pair[0], pair[1])
+        sendTextMessageToSecretSanta(
+            client, phonenumbers[pair[0]], pair[0], pair[1])
         # Wait for 1s to not spam the message service
-        # print(pair)
         time.sleep(1)
+
+
+def getSaveFileNames():
+    """
+    # getSaveFileNames
+
+    Function that returns a file name for where secret santa data shall be 
+    stored, as well as the name of the secret santa file for previous year
+    """
+    filename = 'secretSanta_'
+    now = time.localtime()
+    savefile = '{}{}'.format(filename, now.tm_year)
+    previousSavefile = '{}{}'.format(filename, now.tm_year-1)
+    return savefile, previousSavefile
 
 
 def getFamilyData():
@@ -55,7 +75,7 @@ def getFamilyData():
     return data['families'], data['phonenumbers']
 
 
-def randomizeSecretSanta(families):
+def randomizeSecretSanta(families, previousSecretSanta=[]):
     """
     # randomizeSecretSanta
 
@@ -81,6 +101,14 @@ def randomizeSecretSanta(families):
                 # Remove people who already have a designated secret santa (the second person is the receiver)
                 availableReceivers = list(
                     set(otherFamilies) - set([pair[1] for pair in secretSanta]))
+                # If there is a previous secret santa list, remove the secret santa that the person
+                # had as receiver last year
+                if previousSecretSanta:
+                    for pair in previousSecretSanta:
+                        if pair[0] == member:
+                            if pair[1] in availableReceivers:
+                                availableReceivers.remove(pair[1])
+                            break
                 if len(availableReceivers) == 0:
                     # There are no available choices left. This can only happen if a member in the last
                     # family has not yet been randomly selected when it's time for the last member in the last

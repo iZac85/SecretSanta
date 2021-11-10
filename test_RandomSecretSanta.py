@@ -7,12 +7,15 @@ import pickle
 
 target = __import__("RandomSecretSanta")
 getFamilyData = target.getFamilyData
+getSaveFileNames = target.getSaveFileNames
 
 
 class TestScript(unittest.TestCase):
-    # filename = 'secretSanta_test' # Test file only used for developing the tests
-    # Secret santa list created from the last script execution
-    filename = 'secretSanta_2020'
+
+    def __init__(self, methodName: str = ...) -> None:
+        # Get the secret santa lists created from previous script executions
+        self.filename, self.previousFilename = getSaveFileNames()
+        super().__init__(methodName=methodName)
 
     def test_all_names_in_list(self):
         """
@@ -100,4 +103,24 @@ class TestScript(unittest.TestCase):
             for family in families:
                 if pair[0] in family:
                     self.assertTrue(pair[1] not in family)
+                    break
+
+    def test_not_same_receiver_as_previous_year(self):
+        """
+        Test that no secret santa have the same receiver as previous year
+        """
+        # Load the secretSanta variable from the provided filenames
+        with open(self.filename, 'rb') as f:
+            secretSanta = pickle.load(f)
+
+        with open(self.previousFilename, 'rb') as f:
+            previousSecretSanta = pickle.load(f)
+
+        # Loop through all secretSanta pairs and typecast to set
+        # to make sure there are no duplicates
+        for pair in secretSanta:
+            # Find receiver for previous year
+            for prevPair in previousSecretSanta:
+                if prevPair[0] == pair[0]:
+                    self.assertNotEqual(prevPair[1], pair[1])
                     break
