@@ -43,7 +43,7 @@ def main(sendTextMessages=False):
     # Save the result to file if it needs to be reused later
     with open(savefile, "wb") as f:
         pickle.dump(secretSanta, f)
-    print('Secret santa saved to: ''{}'''.format(savefile))
+    print('Secret santa saved to: \'{}\''.format(savefile))
 
     # Run unittests on the saved file
     print('Verifying secret santa file')
