@@ -1,65 +1,86 @@
 #!/usr/bin/env python3
 
 import os.path
-from textmagic.rest import TextmagicRestClient
-from random import choice
 import pickle
 import time
 import json
 import yaml
+from textmagic.rest import TextmagicRestClient
+from random import choice
+from unittest import TestLoader, TestResult
 from pathlib import Path
 
 
-def main():
+def main(sendTextMessages=False):
     """
     # main
 
-    This function will find a random secret santa for every person in every 
-    family with the requirements that it is not the other family member and not 
+    This function will find a random secret santa for every person in every
+    family with the requirements that it is not the other family member and not
     the person it self.
 
-    It will then send text messages to all family members with their secret
-    santa
+    If sendTextMessages is set to True a text message will be sent to all
+    family members with their secret santa
     """
+    print('================== Random Secret Santa ==================')
     # Get family data (names, relations and phone numbers)
     families, phonenumbers = getFamilyData()
     savefile, previousSavefile = getSaveFileNames()
+    print('Secret santa will be saved to: \'{}\''.format(savefile))
 
     # Look for file with secret santas for previous year
     if os.path.isfile(previousSavefile):
-        with open(previousSavefile, 'rb') as f:
+        with open(previousSavefile, "rb") as f:
             previousSecretSanta = pickle.load(f)
+    print(
+        'Found secret santa from previous year: \'{}\''
+        ''.format(previousSavefile))
 
     # Generate randomized secret santa
+    print('Generating secret santa')
     secretSanta = randomizeSecretSanta(families, previousSecretSanta)
 
     # Save the result to file if it needs to be reused later
-    with open(savefile, 'wb') as f:
+    with open(savefile, "wb") as f:
         pickle.dump(secretSanta, f)
+    print('Secret santa saved to: ''{}'''.format(savefile))
 
-    # Initiate text message client
-    settings = get_settings()
-    client = initiateTextMessageClient(settings)
+    # Run unittests on the saved file
+    print('Verifying secret santa file')
+    testSuccessul = runUnitTestOnSavedFile()
+    if not testSuccessul:
+        print('Verification failed')
+        print('================== FAILED ==================')
+        return
+    print('All tests passed')
+    if sendTextMessages:
+        # Initiate text message client
+        print('Initializing text message client')
+        settings = get_settings()
+        client = initiateTextMessageClient(settings)
 
-    # Send text message to all secret santa
-    for pair in secretSanta:
-        sendTextMessageToSecretSanta(
-            client, phonenumbers[pair[0]], pair[0], pair[1])
-        # Wait for 1s to not spam the message service
-        time.sleep(1)
+        # Send text message to all secret santa
+        print('Sending text messages')
+        for pair in secretSanta:
+            sendTextMessageToSecretSanta(
+                client, phonenumbers[pair[0]], pair[0], pair[1])
+            # Wait for 1s to not spam the message service
+            time.sleep(1)
+        print('Done')
+    print('================== Finished successfully ==================')
 
 
 def getSaveFileNames():
     """
     # getSaveFileNames
 
-    Function that returns a file name for where secret santa data shall be 
+    Function that returns a file name for where secret santa data shall be
     stored, as well as the name of the secret santa file for previous year
     """
-    filename = 'secretSanta_'
+    filename = "secretSanta_"
     now = time.localtime()
-    savefile = '{}{}'.format(filename, now.tm_year)
-    previousSavefile = '{}{}'.format(filename, now.tm_year-1)
+    savefile = "{}{}".format(filename, now.tm_year)
+    previousSavefile = "{}{}".format(filename, now.tm_year - 1)
     return savefile, previousSavefile
 
 
@@ -70,16 +91,16 @@ def getFamilyData():
     Function that returns family data read from a json file
     """
     # Nested list with all families
-    with open('family_data.json') as json_file:
+    with open("family_data.json") as json_file:
         data = json.load(json_file)
-    return data['families'], data['phonenumbers']
+    return data["families"], data["phonenumbers"]
 
 
 def randomizeSecretSanta(families, previousSecretSanta=[]):
     """
     # randomizeSecretSanta
 
-    Function that takes a nested list of families as input, where the sub lists contains 
+    Function that takes a nested list of families as input, where the sub lists contains
     people that should not get each other as secret santa.
 
     Outputs a nested list with names and for whom they are secret santa, e.g in the following format:
@@ -95,12 +116,13 @@ def randomizeSecretSanta(families, previousSecretSanta=[]):
             otherFamilies = families.copy()
             otherFamilies.remove(family)
             # Flatten the list
-            otherFamilies = [item for sublist in otherFamilies
-                             for item in sublist]
+            otherFamilies = [
+                item for sublist in otherFamilies for item in sublist]
             for member in family:
                 # Remove people who already have a designated secret santa (the second person is the receiver)
                 availableReceivers = list(
-                    set(otherFamilies) - set([pair[1] for pair in secretSanta]))
+                    set(otherFamilies) - set([pair[1] for pair in secretSanta])
+                )
                 # If there is a previous secret santa list, remove the secret santa that the person
                 # had as receiver last year
                 if previousSecretSanta:
@@ -129,9 +151,9 @@ def randomizeSecretSanta(families, previousSecretSanta=[]):
     if tries == 10:
         raise Exception(
             "randomizeSecretSanta",
-            "Randomization failed. The maximum number of tries was reached")
-    # print("=================================")
-    #print("Final secretSanta: ", secretSanta)
+            "Randomization failed. The maximum number of tries was reached",
+        )
+    # print("Final secretSanta: ", secretSanta)
     return secretSanta
 
 
@@ -139,9 +161,9 @@ def get_settings():
     """
     # get_settings
 
-    Function that returns a dict with settings read from a yaml-file 
+    Function that returns a dict with settings read from a yaml-file
     """
-    full_file_path = Path(__file__).parent.joinpath('settings.yaml')
+    full_file_path = Path(__file__).parent.joinpath("settings.yaml")
     with open(full_file_path) as settings:
         settings_data = yaml.load(settings, Loader=yaml.Loader)
     return settings_data
@@ -153,8 +175,8 @@ def initiateTextMessageClient(settings):
 
     Function that initiates the connection with the text messaging service
     """
-    username = settings['username']
-    token = settings['token']
+    username = settings["username"]
+    token = settings["token"]
     client = TextmagicRestClient(username, token)
     return client
 
@@ -168,20 +190,22 @@ def sendTextMessageToSecretSanta(client, phonenumber, secretSanta, receiver):
     """
     message = client.messages.create(
         phones=phonenumber,
-        text="Hej {}!\n\nDin hemliga julklappsmottagare är: {} \n\nGod Jul önskar Tomten!".
-        format(secretSanta, receiver))
+        text="Hej {}!\n\nDin hemliga julklappsmottagare är: {} \n\nGod Jul önskar Tomten!".format(
+            secretSanta, receiver
+        ),
+    )
 
 
 def sendTextMessageFromFile(
-        textMessageRecipant, phonenumber, filename='secretSanta'):
+        textMessageRecipant, phonenumber, filename="secretSanta"):
     """
     # sendTextMessageFromFile
 
-    Function that can be used to send text message to a secret santa, using an old randomization
-    stored in a file using pickle
+    Function that can be used to send text message to a secret santa, using an 
+    old randomization stored in a file using pickle
     """
     # Load the secretSanta variable from the provided filename
-    with open(filename, 'rb') as f:
+    with open(filename, "rb") as f:
         secretSanta = pickle.load(f)
     # Initiate text message client
     client = initiateTextMessageClient()
@@ -193,5 +217,39 @@ def sendTextMessageFromFile(
         client, phonenumber, textMessageRecipant, receiver)
 
 
-if __name__ == '__main__':
-    main()
+def runUnitTestOnSavedFile():
+    """
+    # runUnitTestOnSavedFile
+
+    Function that runs unit tests to verify that the file with secret 
+    santa is following all the rules specified in the tests.
+
+    The function returns a boolean stating if all tests have passed or not
+    """
+    test_loader = TestLoader()
+    test_result = TestResult()
+
+    # Use resolve() to get an absolute path
+    # https://docs.python.org/3/library/pathlib.html#pathlib.Path.resolve
+    test_directory = str(Path(__file__).resolve().parent)
+
+    test_suite = test_loader.discover(test_directory, pattern='test_*.py')
+    test_suite.run(result=test_result)
+
+    # See the docs for details on the TestResult object
+    # https://docs.python.org/3/library/unittest.html#unittest.TestResult
+
+    if test_result.wasSuccessful():
+        return True
+    else:
+        print('Tests of secretSanta-file failed:')
+        if test_result.errors != []:
+            print(test_result.errors)
+        if test_result.failures != []:
+            for message in test_result.failures:
+                print(message)
+        return False
+
+
+if __name__ == "__main__":
+    main(sendTextMessages=False)
