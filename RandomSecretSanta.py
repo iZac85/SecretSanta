@@ -60,13 +60,14 @@ def main(sendTextMessages=False):
         client = initiateTextMessageClient(settings)
 
         # Send text message to all secret santa
-        print('Sending text messages')
+        print('Sending {} text messages: '.format(len(secretSanta)), end='')
         for pair in secretSanta:
+            print('#', end='')
             sendTextMessageToSecretSanta(
                 client, phonenumbers[pair[0]], pair[0], pair[1])
             # Wait for 1s to not spam the message service
             time.sleep(1)
-        print('Done')
+        print(' Done')
     print('================== Finished successfully ==================')
 
 
