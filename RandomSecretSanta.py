@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 
+import json
 import os.path
 import pickle
 import time
-import json
-import yaml
-from textmagic.rest import TextmagicRestClient
+from pathlib import Path
 from random import choice
 from unittest import TestLoader, TestResult
-from pathlib import Path
+
+import yaml
+from textmagic.rest import TextmagicRestClient
 
 
-def main(sendTextMessages=False):
+def main(sendTextMessages=False, printSecretSantaReceivers=[]):
     """
     # main
 
@@ -19,8 +20,12 @@ def main(sendTextMessages=False):
     family with the requirements that it is not the other family member and not
     the person it self.
 
-    If sendTextMessages is set to True a text message will be sent to all
-    family members with their secret santa
+    Inputs: 
+    - If sendTextMessages is set to True a text message will be sent to all
+      family members with their secret santa
+    
+    - If printSecretSantaReceivers is not empty, the secret santa pairs for the 
+      receiver names in the list will be printed
     """
     print('================== Random Secret Santa ==================')
     # Get family data (names, relations and phone numbers)
@@ -47,8 +52,8 @@ def main(sendTextMessages=False):
 
     # Run unittests on the saved file
     print('Verifying secret santa file')
-    testSuccessul = runUnitTestOnSavedFile()
-    if not testSuccessul:
+    testSuccessful = runUnitTestOnSavedFile()
+    if not testSuccessful:
         print('Verification failed')
         print('================== FAILED ==================')
         return
@@ -251,6 +256,23 @@ def runUnitTestOnSavedFile():
                 print(message)
         return False
 
+def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list):
+    """
+    # printReceiversFromFile
+    Function that prints secret santa receivers from a loaded file.
+    
+    secretSantaReceiversToPrint contains a list of secret santa pairs for the 
+    receiver names in the list will be printed
+    """
+
+    # Look for file with secret santas for previous year
+    with open(saved_file, "rb") as f:
+        randomizedSecretSanta = pickle.load(f)
+        
+    for name in secretSantaReceiversToPrint:
+        for pair in randomizedSecretSanta:
+            if name in pair[1]:
+                print('{} is the secret santa for {}'.format(pair[0], pair[1]))
 
 if __name__ == "__main__":
     main(sendTextMessages=False)
