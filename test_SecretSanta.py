@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Testfunktion för RandomSecretSanta.py
+Test function for SecretSanta.py
 """
-import unittest
 import pickle
+import unittest
 
-target = __import__("RandomSecretSanta")
+target = __import__("SecretSanta")
 getFamilyData = target.getFamilyData
 getSaveFileNames = target.getSaveFileNames
 
