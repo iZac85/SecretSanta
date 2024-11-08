@@ -1,4 +1,4 @@
-# RandomSecretSanta
+# SecretSanta
 
 A script for randomly selecting secret santa. It uses a service called Textmagic (https://www.textmagic.com) to send text messages to the family members with their randomly selected secret santa.
 
