@@ -2,6 +2,7 @@
 """
 Test function for SecretSanta.py
 """
+import os
 import pickle
 import unittest
 
@@ -14,7 +15,7 @@ class TestScript(unittest.TestCase):
 
     def __init__(self, methodName: str = ...) -> None:
         # Get the secret santa lists created from previous script executions
-        self.filename, self.previousFilename = getSaveFileNames()
+        self.filename = getSaveFileNames()[0]
         super().__init__(methodName=methodName)
 
     def test_all_names_in_list(self):
@@ -109,11 +110,16 @@ class TestScript(unittest.TestCase):
         """
         Test that no secret santa have the same receiver as previous year
         """
+        filename, previousFilenames = getSaveFileNames(nPreviousSaveFiles=1)
+
         # Load the secretSanta variable from the provided filenames
-        with open(self.filename, 'rb') as f:
+        with open(filename, 'rb') as f:
             secretSanta = pickle.load(f)
 
-        with open(self.previousFilename, 'rb') as f:
+        if not os.path.isfile(previousFilenames[0]):
+            return
+
+        with open(previousFilenames[0], 'rb') as f:
             previousSecretSanta = pickle.load(f)
 
         # Loop through all secretSanta pairs and typecast to set
@@ -124,3 +130,29 @@ class TestScript(unittest.TestCase):
                 if prevPair[0] == pair[0]:
                     self.assertNotEqual(prevPair[1], pair[1])
                     break
+
+    def test_not_same_receiver_as_any_of_four_previous_year(self):
+        """
+        Test that no secret santa have the same receiver as previous year
+        """
+        filename, previousFilenames = getSaveFileNames(nPreviousSaveFiles=4)
+
+        with open(filename, 'rb') as f:
+            secretSanta = pickle.load(f)
+
+        previousSecretSanta = {}
+        for fileName in previousFilenames:
+            if os.path.isfile(fileName):
+                with open(fileName, "rb") as f:
+                    secretSantas = pickle.load(f)
+                for pair in secretSantas:
+                    if pair[0] in previousSecretSanta:
+                        previousSecretSanta[pair[0]] += [pair[1]]
+                    else:
+                        previousSecretSanta[pair[0]] = [pair[1]]
+
+        for pair in secretSanta:
+            # A secret santa shall not have the same receiver as any previous
+            # year
+            if pair[0] in previousSecretSanta:
+                self.assertTrue(pair[0] not in previousSecretSanta[pair[0]])

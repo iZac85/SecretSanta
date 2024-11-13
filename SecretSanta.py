@@ -12,7 +12,7 @@ import yaml
 from textmagic.rest import TextmagicRestClient
 
 
-def main(sendTextMessages=False, printSecretSantaReceivers=[]):
+def main(sendTextMessages=False, nPreviousSaveFiles=1):
     """
     # main
 
@@ -23,27 +23,20 @@ def main(sendTextMessages=False, printSecretSantaReceivers=[]):
     Inputs: 
     - If sendTextMessages is set to True a text message will be sent to all
       family members with their secret santa
-    
-    - If printSecretSantaReceivers is not empty, the secret santa pairs for the 
-      receiver names in the list will be printed
+
+    - nPreviousSaveFiles states how many save files from previous years to
+      search for when excluding secret santa receivers from previous years
 
     Return: Name of file containing the secret santas
     """
     print('\n================== Random Secret Santa ==================')
     # Get family data (names, relations and phone numbers)
     families, phonenumbers = getFamilyData()
-    savefile, previousSavefile = getSaveFileNames()
+    savefile, previousSavefiles = getSaveFileNames(nPreviousSaveFiles=nPreviousSaveFiles)
     print('Secret santa will be saved to: \'{}\''.format(savefile))
 
-    # Look for file with secret santas for previous year
-    if os.path.isfile(previousSavefile):
-        with open(previousSavefile, "rb") as f:
-            previousSecretSanta = pickle.load(f)
-    print(
-        'Found secret santa from previous year: \'{}\''
-        ''.format(previousSavefile))
+    previousSecretSanta = getSecretSantasFromPreviousYears(previousSavefiles)
 
-    # Generate randomized secret santa
     print('Generating secret santa')
     secretSanta = randomizeSecretSanta(families, previousSecretSanta)
 
@@ -79,7 +72,24 @@ def main(sendTextMessages=False, printSecretSantaReceivers=[]):
     return savefile
 
 
-def getSaveFileNames():
+def getSecretSantasFromPreviousYears(previousSavefiles):
+    previousSecretSanta = {}
+    for fileName in previousSavefiles:
+        if os.path.isfile(fileName):
+            with open(fileName, "rb") as f:
+                secretSantas = pickle.load(f)
+            print(
+            'Found secret santa from previous year: \'{}\''
+            ''.format(fileName))
+            for pair in secretSantas:
+                if pair[0] in previousSecretSanta:
+                    previousSecretSanta[pair[0]] += [pair[1]]
+                else:
+                    previousSecretSanta[pair[0]] = [pair[1]]
+    return previousSecretSanta
+
+
+def getSaveFileNames(nPreviousSaveFiles: int=1):
     """
     # getSaveFileNames
 
@@ -89,8 +99,10 @@ def getSaveFileNames():
     filename = "secretSanta_"
     now = time.localtime()
     savefile = "{}{}".format(filename, now.tm_year)
-    previousSavefile = "{}{}".format(filename, now.tm_year - 1)
-    return savefile, previousSavefile
+    previousSavefiles = []
+    for i in range(1, nPreviousSaveFiles + 1):
+        previousSavefiles += ["{}{}".format(filename, now.tm_year - i)]
+    return savefile, previousSavefiles
 
 
 def getFamilyData():
@@ -105,7 +117,7 @@ def getFamilyData():
     return data["families"], data["phonenumbers"]
 
 
-def randomizeSecretSanta(families, previousSecretSanta=[]):
+def randomizeSecretSanta(families, previousSecretSanta={}):
     """
     # randomizeSecretSanta
 
@@ -135,11 +147,10 @@ def randomizeSecretSanta(families, previousSecretSanta=[]):
                 # If there is a previous secret santa list, remove the secret santa that the person
                 # had as receiver last year
                 if previousSecretSanta:
-                    for pair in previousSecretSanta:
-                        if pair[0] == member:
-                            if pair[1] in availableReceivers:
-                                availableReceivers.remove(pair[1])
-                            break
+                    if member in previousSecretSanta:
+                        for previousReceiver in previousSecretSanta[member]:
+                            if previousReceiver in availableReceivers:
+                                availableReceivers.remove(previousReceiver)
                 if len(availableReceivers) == 0:
                     # There are no available choices left. This can only happen if a member in the last
                     # family has not yet been randomly selected when it's time for the last member in the last
@@ -266,7 +277,7 @@ def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list=[]
     
     secretSantaReceiversToPrint contains a list of secret santa pairs for the
     receiver names in the list will be printed. If left empty, all secret
-    santa's will be printed out.
+    santas will be printed out.
     """
 
     # Look for file with secret santas for previous year
@@ -287,9 +298,9 @@ def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list=[]
 
 if __name__ == "__main__":
     # Set live_run to true when testing is complete and text messages shall be
-    # sent to all secret santa's
+    # sent to all secret santas
     live_run = False
-    savefile = main(sendTextMessages=live_run)
+    savefile = main(sendTextMessages=live_run, nPreviousSaveFiles=4)
     if not live_run:
         print("\nResults:")
         printReceiversFromFile(savefile)
