@@ -26,8 +26,10 @@ def main(sendTextMessages=False, printSecretSantaReceivers=[]):
     
     - If printSecretSantaReceivers is not empty, the secret santa pairs for the 
       receiver names in the list will be printed
+
+    Return: Name of file containing the secret santas
     """
-    print('================== Random Secret Santa ==================')
+    print('\n================== Random Secret Santa ==================')
     # Get family data (names, relations and phone numbers)
     families, phonenumbers = getFamilyData()
     savefile, previousSavefile = getSaveFileNames()
@@ -74,6 +76,7 @@ def main(sendTextMessages=False, printSecretSantaReceivers=[]):
             time.sleep(1)
         print(' Done')
     print('================== Finished successfully ==================')
+    return savefile
 
 
 def getSaveFileNames():
@@ -143,6 +146,7 @@ def randomizeSecretSanta(families, previousSecretSanta=[]):
                     # family to get a randomly selected receiver. In this case we need to restart
                     # the whole randomizer.
                     randomizationSuccessful = False
+                    print('Secret santa randomization failed. Trying again.')
                     break
                 else:
                     # Generate a random receiver
@@ -159,7 +163,6 @@ def randomizeSecretSanta(families, previousSecretSanta=[]):
             "randomizeSecretSanta",
             "Randomization failed. The maximum number of tries was reached",
         )
-    # print("Final secretSanta: ", secretSanta)
     return secretSanta
 
 
@@ -256,23 +259,37 @@ def runUnitTestOnSavedFile():
                 print(message)
         return False
 
-def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list):
+def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list=[]):
     """
     # printReceiversFromFile
     Function that prints secret santa receivers from a loaded file.
     
-    secretSantaReceiversToPrint contains a list of secret santa pairs for the 
-    receiver names in the list will be printed
+    secretSantaReceiversToPrint contains a list of secret santa pairs for the
+    receiver names in the list will be printed. If left empty, all secret
+    santa's will be printed out.
     """
 
     # Look for file with secret santas for previous year
     with open(saved_file, "rb") as f:
         randomizedSecretSanta = pickle.load(f)
-        
-    for name in secretSantaReceiversToPrint:
-        for pair in randomizedSecretSanta:
-            if name in pair[1]:
-                print('{} is the secret santa for {}'.format(pair[0], pair[1]))
+
+    print_all_names = False
+    if secretSantaReceiversToPrint == []:
+        print_all_names = True
+
+    for pair in randomizedSecretSanta:
+        if print_all_names:
+            print('{} is secret santa for {}'.format(pair[0], pair[1]))
+        else:
+            for name in secretSantaReceiversToPrint:
+                if name in pair[1]:
+                    print('{} is secret santa for {}'.format(pair[0], pair[1]))
 
 if __name__ == "__main__":
-    main(sendTextMessages=False)
+    # Set live_run to true when testing is complete and text messages shall be
+    # sent to all secret santa's
+    live_run = False
+    savefile = main(sendTextMessages=live_run)
+    if not live_run:
+        print("\nResults:")
+        printReceiversFromFile(savefile)
