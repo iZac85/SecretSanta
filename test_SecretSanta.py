@@ -166,7 +166,7 @@ class TestScript(unittest.TestCase):
             # A secret santa shall not have the same receiver as any previous
             # year
             if pair[0] in previousSecretSanta:
-                self.assertTrue(pair[0] not in previousSecretSanta[pair[0]])
+                self.assertNotIn(pair[1], previousSecretSanta[pair[0]])
 
 
 class TestTextMessage(unittest.TestCase):
