@@ -1,3 +1,7 @@
 *.yaml
 *.yml
 *.json
+__pycache__/
+*.py[cod]
+.venv/
+secretSanta_*

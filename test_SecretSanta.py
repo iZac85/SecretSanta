@@ -5,18 +5,29 @@ Test function for SecretSanta.py
 import os
 import pickle
 import unittest
+from unittest.mock import MagicMock, mock_open, patch
+
+import TextMagic
+from TextMagic.rest import ApiException
 
 target = __import__("SecretSanta")
 getFamilyData = target.getFamilyData
 getSaveFileNames = target.getSaveFileNames
+initiateTextMessageClient = target.initiateTextMessageClient
+sendTextMessageToSecretSanta = target.sendTextMessageToSecretSanta
+sendTextMessageFromFile = target.sendTextMessageFromFile
 
 
 class TestScript(unittest.TestCase):
 
-    def __init__(self, methodName: str = ...) -> None:
+    def __init__(self, methodName: str = "runTest") -> None:
         # Get the secret santa lists created from previous script executions
         self.filename = getSaveFileNames()[0]
         super().__init__(methodName=methodName)
+
+    def setUp(self):
+        if not os.path.isfile(self.filename) or not os.path.isfile("family_data.json"):
+            self.skipTest(f"Required files not found ({self.filename} or family_data.json)")
 
     def test_all_names_in_list(self):
         """
@@ -156,3 +167,66 @@ class TestScript(unittest.TestCase):
             # year
             if pair[0] in previousSecretSanta:
                 self.assertTrue(pair[0] not in previousSecretSanta[pair[0]])
+
+
+class TestTextMessage(unittest.TestCase):
+
+    def test_initiate_text_message_client_success(self):
+        settings = {"username": "test_user", "api_key": "test_api_key"}
+        client = initiateTextMessageClient(settings)
+        self.assertIsInstance(client, TextMagic.TextMagicApi)
+        self.assertEqual(client.api_client.configuration.username, "test_user")
+        self.assertEqual(client.api_client.configuration.password, "test_api_key")
+
+    def test_initiate_text_message_client_missing_credentials(self):
+        with self.assertRaises(KeyError):
+            initiateTextMessageClient({"username": "user_only"})
+        with self.assertRaises(KeyError):
+            initiateTextMessageClient({"api_key": "api_key_only"})
+
+    @patch("SecretSanta.get_settings")
+    def test_initiate_text_message_client_default_settings(self, mock_get_settings):
+        mock_get_settings.return_value = {"username": "u", "api_key": "k"}
+        client = initiateTextMessageClient()
+        mock_get_settings.assert_called_once()
+        self.assertIsInstance(client, TextMagic.TextMagicApi)
+
+    def test_send_text_message_to_secret_santa(self):
+        mock_api = MagicMock()
+        mock_response = MagicMock(id=987654)
+        mock_api.send_message.return_value = mock_response
+
+        response = sendTextMessageToSecretSanta(
+            mock_api, "+46701234567", "Alice", "Bob"
+        )
+        self.assertEqual(response, mock_response)
+        mock_api.send_message.assert_called_once()
+        kwargs = mock_api.send_message.call_args[1]
+        input_object = kwargs["send_message_input_object"]
+        self.assertEqual(input_object["phones"], "+46701234567")
+        self.assertIn("Alice", input_object["text"])
+        self.assertIn("Bob", input_object["text"])
+
+    @patch("builtins.print")
+    def test_send_text_message_to_secret_santa_api_exception(self, mock_print):
+        mock_api = MagicMock()
+        mock_api.send_message.side_effect = ApiException(status=400, reason="Bad Request")
+
+        with self.assertRaises(ApiException):
+            sendTextMessageToSecretSanta(
+                mock_api, "+46701234567", "Alice", "Bob"
+            )
+        mock_print.assert_called()
+
+    @patch("SecretSanta.initiateTextMessageClient")
+    @patch("SecretSanta.sendTextMessageToSecretSanta")
+    def test_send_text_message_from_file(self, mock_send, mock_init):
+        fake_data = [["Alice", "Bob"], ["Charlie", "Diana"]]
+        fake_pickle = pickle.dumps(fake_data)
+        with patch("builtins.open", mock_open(read_data=fake_pickle)):
+            sendTextMessageFromFile("Alice", "+46701234567", filename="fake_file")
+            mock_init.assert_called_once_with()
+            mock_send.assert_called_once_with(
+                mock_init.return_value, "+46701234567", "Alice", "Bob"
+            )
+

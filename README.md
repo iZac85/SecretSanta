@@ -24,4 +24,45 @@ It shall also include a dictionary called "phonenumbers" which contains names as
         "PersonD": "+99123456789"
 }
 
-For the Textmagic service to work, a file called settings.yaml must also be created which contains two field, 'username' and 'token'.
+For the Textmagic service to work, a file called settings.yaml must also be created which contains two fields, 'username' and 'api_key':
+```yaml
+username: "YOUR_TEXTMAGIC_USERNAME"
+api_key: "YOUR_TEXTMAGIC_API_KEY"
+```
+
+## Installation
+
+The script requires Python >= 3.9 and uses the modern [TextMagic REST Python SDK](https://docs.textmagic.com/#tag/SDKs/Python/Installation).
+
+> **Note:** The modern TextMagic SDK is distributed via GitHub (the legacy PyPI package is outdated).
+
+```bash
+# Set up a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+Alternatively, install the TextMagic SDK directly:
+```bash
+pip install git+https://github.com/textmagic/textmagic-rest-python-v2.git@v3.0.50169
+pip install pyyaml
+```
+
+## Running
+
+```bash
+# 1. Local test (generates pairs, saves file, and runs tests without contacting TextMagic)
+python SecretSanta.py
+
+# 2. Dry run (verifies TextMagic connection/credentials via ping and previews all SMS messages without sending)
+python SecretSanta.py --dry-run
+
+# 3. Live run (sends SMS text messages to all participants)
+python SecretSanta.py --live
+
+# 4. Automated unit tests
+python -m unittest test_SecretSanta.py
+```

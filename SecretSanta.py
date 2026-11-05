@@ -3,16 +3,18 @@
 import json
 import os.path
 import pickle
+import sys
 import time
 from pathlib import Path
 from random import choice
 from unittest import TestLoader, TestResult
 
 import yaml
-from textmagic.rest import TextmagicRestClient
+import TextMagic
+from TextMagic.rest import ApiException
 
 
-def main(sendTextMessages=False, nPreviousSaveFiles=1):
+def main(sendTextMessages=False, nPreviousSaveFiles=1, dryRun=False):
     """
     # main
 
@@ -23,6 +25,9 @@ def main(sendTextMessages=False, nPreviousSaveFiles=1):
     Inputs: 
     - If sendTextMessages is set to True a text message will be sent to all
       family members with their secret santa
+
+    - If dryRun is set to True, credentials and connection to TextMagic are
+      verified (via ping) and messages are previewed without sending actual SMS
 
     - nPreviousSaveFiles states how many save files from previous years to
       search for when excluding secret santa receivers from previous years
@@ -53,21 +58,37 @@ def main(sendTextMessages=False, nPreviousSaveFiles=1):
         print('================== FAILED ==================')
         return
     print('All tests passed')
-    if sendTextMessages:
+    if sendTextMessages or dryRun:
         # Initiate text message client
         print('Initializing text message client')
         settings = get_settings()
         client = initiateTextMessageClient(settings)
 
-        # Send text message to all secret santa
-        print('Sending {} text messages: '.format(len(secretSanta)), end='')
-        for pair in secretSanta:
-            print('#', end='')
-            sendTextMessageToSecretSanta(
-                client, phonenumbers[pair[0]], pair[0], pair[1])
-            # Wait for 1s to not spam the message service
-            time.sleep(1)
-        print(' Done')
+        # Test connection and credentials with TextMagic
+        try:
+            client.ping()
+            print('TextMagic API connection verified')
+        except ApiException as e:
+            print(f'TextMagic API connection failed: {e}')
+            print('================== FAILED ==================')
+            return
+
+        if sendTextMessages:
+            # Send text message to all secret santa
+            print('Sending {} text messages: '.format(len(secretSanta)), end='')
+            for pair in secretSanta:
+                print('#', end='')
+                sendTextMessageToSecretSanta(
+                    client, phonenumbers[pair[0]], pair[0], pair[1])
+                # Wait for 1s to not spam the message service
+                time.sleep(1)
+            print(' Done')
+        else:
+            print('\n[DRY RUN] Preview of {} text messages that would be sent:'.format(len(secretSanta)))
+            for pair in secretSanta:
+                giver, receiver = pair[0], pair[1]
+                phone = phonenumbers.get(giver, 'MISSING')
+                print("  To: {} ({})\n  Din hemliga julklappsmottagare är: {}\n".format(giver, phone, receiver))
     print('================== Finished successfully ==================')
     return savefile
 
@@ -189,16 +210,20 @@ def get_settings():
     return settings_data
 
 
-def initiateTextMessageClient(settings):
+def initiateTextMessageClient(settings=None):
     """
     # initiateTextMessageClient
 
     Function that initiates the connection with the text messaging service
     """
+    if settings is None:
+        settings = get_settings()
     username = settings["username"]
-    token = settings["token"]
-    client = TextmagicRestClient(username, token)
-    return client
+    api_key = settings["api_key"]
+
+    configuration = TextMagic.Configuration(username=username, password=api_key)
+    api_client = TextMagic.ApiClient(configuration)
+    return TextMagic.TextMagicApi(api_client)
 
 
 def sendTextMessageToSecretSanta(client, phonenumber, secretSanta, receiver):
@@ -208,12 +233,21 @@ def sendTextMessageToSecretSanta(client, phonenumber, secretSanta, receiver):
     Function that sends a text message to the secret santa, informing about who
     that person is secret santa for.
     """
-    message = client.messages.create(
-        phones=phonenumber,
-        text="Hej {}!\n\nDin hemliga julklappsmottagare är: {} \n\nGod Jul önskar Tomten!".format(
-            secretSanta, receiver
-        ),
-    )
+    try:
+        message = client.send_message(
+            send_message_input_object={
+                "text": "Hej {}!\n\nDin hemliga julklappsmottagare är: {} \n\nGod Jul önskar Tomten!".format(
+                    secretSanta, receiver
+                ),
+                "phones": phonenumber,
+            }
+        )
+        return message
+    except ApiException as e:
+        print("\nFailed to send message to {} ({}): {}".format(
+            secretSanta, phonenumber, e
+        ))
+        raise
 
 
 def sendTextMessageFromFile(
@@ -297,10 +331,13 @@ def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list=[]
                     print('{} is secret santa for {}'.format(pair[0], pair[1]))
 
 if __name__ == "__main__":
-    # Set live_run to true when testing is complete and text messages shall be
-    # sent to all secret santas
-    live_run = False
-    savefile = main(sendTextMessages=live_run, nPreviousSaveFiles=4)
-    if not live_run:
+    # Modes:
+    # - live_run = True (or --live): Sends text messages to all secret santas
+    # - dry_run = True (or --dry-run): Tests TextMagic connection (via ping) and previews messages without sending
+    # - Both False: Local run (generates and verifies secret santas without contacting TextMagic)
+    live_run = False or "--live" in sys.argv
+    dry_run = False or "--dry-run" in sys.argv
+    savefile = main(sendTextMessages=live_run, dryRun=dry_run, nPreviousSaveFiles=4)
+    if not live_run and not dry_run and savefile:
         print("\nResults:")
         printReceiversFromFile(savefile)
