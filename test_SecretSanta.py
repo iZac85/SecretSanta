@@ -16,6 +16,7 @@ getSaveFileNames = target.getSaveFileNames
 initiateTextMessageClient = target.initiateTextMessageClient
 sendTextMessageToSecretSanta = target.sendTextMessageToSecretSanta
 sendTextMessageFromFile = target.sendTextMessageFromFile
+printSecretSantasFromFile = target.printSecretSantasFromFile
 
 
 class TestScript(unittest.TestCase):
@@ -229,4 +230,23 @@ class TestTextMessage(unittest.TestCase):
             mock_send.assert_called_once_with(
                 mock_init.return_value, "+46701234567", "Alice", "Bob"
             )
+
+    @patch("builtins.print")
+    def test_print_secret_santas_from_file(self, mock_print):
+        fake_data = [["Alice", "Bob"], ["Charlie", "Diana"]]
+        fake_pickle = pickle.dumps(fake_data)
+
+        # Print filtered by a specific Secret Santa
+        with patch("builtins.open", mock_open(read_data=fake_pickle)):
+            printSecretSantasFromFile("fake_file", secretSantasToPrint=["Alice"])
+            mock_print.assert_called_once_with("Alice is secret santa for Bob")
+
+        mock_print.reset_mock()
+
+        # Print all Secret Santas when list is empty
+        with patch("builtins.open", mock_open(read_data=fake_pickle)):
+            printSecretSantasFromFile("fake_file")
+            self.assertEqual(mock_print.call_count, 2)
+            mock_print.assert_any_call("Alice is secret santa for Bob")
+            mock_print.assert_any_call("Charlie is secret santa for Diana")
 

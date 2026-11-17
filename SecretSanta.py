@@ -330,6 +330,32 @@ def printReceiversFromFile(saved_file: str, secretSantaReceiversToPrint: list=[]
                 if name in pair[1]:
                     print('{} is secret santa for {}'.format(pair[0], pair[1]))
 
+
+def printSecretSantasFromFile(saved_file: str, secretSantasToPrint: list=[]):
+    """
+    # printSecretSantasFromFile
+    Function that prints who the specified secret santas are giving a gift to
+    from a loaded file.
+
+    secretSantasToPrint contains a list of secret santa (giver) names whose
+    pairs will be printed. If left empty, all secret santas will be printed out.
+    """
+
+    with open(saved_file, "rb") as f:
+        randomizedSecretSanta = pickle.load(f)
+
+    print_all_names = False
+    if secretSantasToPrint == []:
+        print_all_names = True
+
+    for pair in randomizedSecretSanta:
+        if print_all_names:
+            print('{} is secret santa for {}'.format(pair[0], pair[1]))
+        else:
+            for name in secretSantasToPrint:
+                if name in pair[0]:
+                    print('{} is secret santa for {}'.format(pair[0], pair[1]))
+
 if __name__ == "__main__":
     # Modes:
     # - live_run = True (or --live): Sends text messages to all secret santas
